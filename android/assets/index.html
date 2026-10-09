@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>MorHesap</title>
+<style>
+:root{
+  --bg:#09070f; --surface:#14101f; --surface2:#1d1730; --surface3:#2a2046; --hover:#33275a;
+  --accent:#8b5cf6; --accent-hi:#a78bfa; --accent-soft:#c4b5fd; --pink:#e879f9;
+  --text:#f3f0ff; --muted:#8f86ad; --faint:#5b5378; --good:#a3e635; --bad:#fb7185; --warn:#fbbf24;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--bg);color:var(--text);overflow:hidden;
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans",sans-serif;
+  -webkit-user-select:none;user-select:none}
+body{display:flex;flex-direction:column}
+main{flex:1 1 auto;min-height:0;position:relative}
+.page{display:none;height:100%;flex-direction:column}
+.page.active{display:flex}
+
+/* ── alt sekme çubuğu ── */
+nav{flex:0 0 auto;display:flex;background:var(--surface);border-top:1px solid var(--surface3);height:66px}
+nav button{flex:1;background:none;border:0;color:var(--muted);font:inherit;font-size:11px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;touch-action:manipulation}
+nav .pill{width:64px;height:30px;border-radius:15px;display:flex;align-items:center;justify-content:center;
+  transition:background .18s}
+nav svg{width:22px;height:22px;stroke:var(--faint);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+nav button.active{color:var(--text);font-weight:700}
+nav button.active .pill{background:var(--surface3)}
+nav button.active svg{stroke:var(--accent-soft)}
+
+/* ── hesap makinesi ── */
+.display{flex:0 0 auto;margin:14px 14px 4px;padding:16px 18px 14px;background:var(--surface);border-radius:22px}
+.display .top{display:flex;align-items:center;gap:10px;height:20px}
+.chip{background:var(--surface3);color:var(--accent-soft);font-size:10px;font-weight:700;padding:3px 8px;
+  border-radius:6px;letter-spacing:.04em}
+#hist{flex:1;text-align:right;color:var(--muted);font-size:14px;white-space:nowrap;overflow:hidden}
+#expr{margin-top:14px;height:52px;line-height:52px;text-align:right;font-weight:700;font-size:42px;
+  white-space:nowrap;overflow:hidden;font-variant-numeric:tabular-nums}
+#prev{height:24px;line-height:24px;text-align:right;color:var(--accent-hi);font-size:18px;
+  white-space:nowrap;overflow:hidden}
+#prev.err{color:var(--bad)}
+.keys{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:repeat(7,1fr);
+  gap:8px;padding:8px 12px 12px}
+.key{border:0;border-radius:18px;font:inherit;font-weight:700;touch-action:manipulation;
+  background:var(--surface);color:var(--accent-hi);font-size:15px;transition:transform .06s,background .1s}
+.key:active{transform:scale(.94);background:var(--hover)}
+.key.num{background:var(--surface2);color:var(--text);font-size:23px}
+.key.op{background:var(--surface3);color:var(--accent-soft);font-size:25px}
+.key.del{background:var(--surface3);color:var(--pink);font-size:18px}
+.key.eq{background:var(--accent);color:#fff;font-size:27px}
+.key.eq:active{background:var(--accent-hi)}
+.key.on{background:var(--accent);color:#fff}
+
+/* ── not ortalaması ── */
+#grade{overflow-y:auto;padding:18px 14px 20px;-webkit-overflow-scrolling:touch}
+#grade h1{font-size:26px;font-weight:700;padding:0 4px}
+#grade .sub{color:var(--muted);font-size:13px;padding:2px 4px 10px;line-height:1.35}
+.card{background:var(--surface);border-radius:22px;padding:18px;margin-bottom:12px}
+.result{display:flex;justify-content:space-between;align-items:flex-start}
+.label{color:var(--muted);font-size:10px;font-weight:700;letter-spacing:.05em}
+#avg{font-size:52px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+#status{font-size:14px;font-weight:700;min-height:40px;margin:4px 0 10px;line-height:1.4;color:var(--muted)}
+.bar{height:8px;border-radius:4px;background:var(--surface2);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:4px;background:var(--accent);width:0;transition:width .2s}
+#wsum{color:var(--muted);font-size:12px;margin-top:8px}
+input{font:inherit;font-size:17px;color:var(--text);background:var(--surface2);border:2px solid var(--surface2);
+  border-radius:12px;padding:9px 10px;width:100%;min-width:0;outline:none;-webkit-user-select:text;user-select:text}
+input:focus{border-color:var(--accent)}
+input.c{text-align:center}
+#pass{width:76px;margin-top:6px}
+.right{text-align:right;display:flex;flex-direction:column;align-items:flex-end}
+.row,.head{display:grid;grid-template-columns:5fr 3fr 3fr 30px;gap:6px;align-items:center}
+.head{margin-bottom:6px;padding:0 4px}
+.row{margin-bottom:8px}
+.row:last-child{margin-bottom:0}
+.x{background:none;border:0;color:var(--faint);font-size:16px;height:36px;border-radius:10px;touch-action:manipulation}
+.x:active{background:var(--surface3)}
+.actions{display:grid;grid-template-columns:3fr 2fr;gap:8px}
+.btn{border:0;border-radius:16px;height:50px;font:inherit;font-size:15px;font-weight:700;touch-action:manipulation;
+  transition:transform .06s}
+.btn:active{transform:scale(.97)}
+.btn.add{background:var(--accent);color:#fff}
+.btn.clear{background:var(--surface3);color:var(--pink)}
+.btn:disabled{opacity:.4}
+</style>
+</head>
+<body>
+<main>
+  <section class="page active" id="calc">
+    <div class="display">
+      <div class="top"><span class="chip" id="modechip">DEG</span><span id="hist"></span></div>
+      <div id="expr">0</div>
+      <div id="prev">&nbsp;</div>
+    </div>
+    <div class="keys" id="keys"></div>
+  </section>
+
+  <section class="page" id="grade">
+    <h1>Not Ortalaması</h1>
+    <p class="sub">Sınav notlarını ve ağırlıklarını gir, ortalaman anında hesaplansın.</p>
+    <div class="card">
+      <div class="result">
+        <div><div class="label">AĞIRLIKLI ORTALAMA</div><div id="avg">—</div></div>
+        <div class="right"><div class="label">GEÇME NOTU</div>
+          <input id="pass" class="c" inputmode="decimal" value="50" maxlength="5"></div>
+      </div>
+      <div id="status"></div>
+      <div class="bar"><i id="barfill"></i></div>
+      <div id="wsum"></div>
+    </div>
+    <div class="card">
+      <div class="head"><span class="label">SINAV</span><span class="label">NOT</span>
+        <span class="label">AĞIRLIK %</span><span></span></div>
+      <div id="rows"></div>
+    </div>
+    <div class="actions">
+      <button class="btn add" id="addrow">+&nbsp; Sınav ekle</button>
+      <button class="btn clear" id="clearrows">Temizle</button>
+    </div>
+  </section>
+</main>
+
+<nav>
+  <button class="active" data-tab="calc">
+    <span class="pill"><svg viewBox="0 0 24 24"><rect x="5" y="2.5" width="14" height="19" rx="3"/>
+      <path d="M9 7h6M9 12h.01M12 12h.01M15 12h.01M9 16h.01M12 16h.01M15 16h.01"/></svg></span>
+    Hesap Makinesi
+  </button>
+  <button data-tab="grade">
+    <span class="pill"><svg viewBox="0 0 24 24"><path d="M6 20v-5M12 20V10M18 20V4"/></svg></span>
+    Not Ortalaması
+  </button>
+</nav>
+
+<script>
+"use strict";
+/* ═════════════ Hesaplama motoru (eval kullanılmaz) ═════════════ */
+var FUNCS = ["asin","acos","atan","sqrt","sin","cos","tan","abs","log","ln"];
+var CONSTS = [["pi", Math.PI], ["π", Math.PI], ["e", Math.E]];
+function CalcError(msg){ this.message = msg; }
+
+function tokenize(s){
+  s = s.replace(/sin⁻¹/g,"asin").replace(/cos⁻¹/g,"acos").replace(/tan⁻¹/g,"atan")
+       .replace(/×/g,"*").replace(/÷/g,"/").replace(/−/g,"-").replace(/√/g,"sqrt").replace(/\s/g,"");
+  var out = [], i = 0, n = s.length;
+  outer: while (i < n){
+    var ch = s[i];
+    if (/[0-9.,]/.test(ch)){
+      var j = i;
+      while (j < n && /[0-9.,]/.test(s[j])) j++;
+      var txt = s.slice(i, j).replace(/,/g, ".");
+      if (txt.split(".").length > 2 || txt === ".") throw new CalcError("Hata");
+      out.push(["num", parseFloat(txt)]); i = j; continue;
+    }
+    if ("+-*/^()!%".indexOf(ch) >= 0){ out.push([ch, ch]); i++; continue; }
+    for (var f = 0; f < FUNCS.length; f++)
+      if (s.startsWith(FUNCS[f], i)){ out.push(["func", FUNCS[f]]); i += FUNCS[f].length; continue outer; }
+    for (var c = 0; c < CONSTS.length; c++)
+      if (s.startsWith(CONSTS[c][0], i)){ out.push(["num", CONSTS[c][1]]); i += CONSTS[c][0].length; continue outer; }
+    throw new CalcError("Hata");
+  }
+  return out;
+}
+
+function evaluate(expr, degrees){
+  var t = tokenize(expr), i = 0;
+  if (!t.length) throw new CalcError("Hata");
+  function peek(){ return i < t.length ? t[i][0] : null; }
+  function take(){ return t[i++]; }
+  function expression(){
+    var v = term();
+    while (peek() === "+" || peek() === "-"){ if (take()[0] === "+") v += term(); else v -= term(); }
+    return v;
+  }
+  function term(){
+    var v = unary();
+    for (;;){
+      var p = peek();
+      if (p === "*"){ take(); v *= unary(); }
+      else if (p === "/"){ take(); var d = unary(); if (d === 0) throw new CalcError("Sıfıra bölünemez"); v /= d; }
+      else if (p === "num" || p === "func" || p === "(") v *= power();   // örtük çarpma: 2π, 3(4+1)
+      else return v;
+    }
+  }
+  function unary(){
+    var p = peek();
+    if (p === "-"){ take(); return -unary(); }
+    if (p === "+"){ take(); return unary(); }
+    return power();
+  }
+  function power(){
+    var base = postfix();
+    if (peek() === "^"){
+      take();
+      var e = unary();
+      if (base === 0 && e < 0) throw new CalcError("Tanımsız");
+      var r = Math.pow(base, e);
+      if (isNaN(r)) throw new CalcError("Tanımsız");
+      if (!isFinite(r)) throw new CalcError("Sonuç çok büyük");
+      return r;
+    }
+    return base;
+  }
+  function postfix(){
+    var v = primary();
+    while (peek() === "!" || peek() === "%"){
+      if (take()[0] === "%") v /= 100;
+      else {
+        if (v < 0 || Math.abs(v - Math.round(v)) > 1e-9) throw new CalcError("Tanımsız");
+        if (v > 170) throw new CalcError("Sonuç çok büyük");
+        var f = 1; for (var k = 2; k <= Math.round(v); k++) f *= k; v = f;
+      }
+    }
+    return v;
+  }
+  function primary(){
+    var p = peek();
+    if (p === "num") return take()[1];
+    if (p === "("){
+      take();
+      var v = expression();
+      if (peek() === ")") take(); else if (peek() !== null) throw new CalcError("Hata");
+      return v;                                   // eksik ")" sonda otomatik kapanır
+    }
+    if (p === "func"){
+      var name = take()[1];
+      if (peek() !== "(") throw new CalcError("Hata");
+      return call(name, primary());
+    }
+    throw new CalcError("Hata");
+  }
+  function call(name, x){
+    var D = Math.PI / 180, r;
+    switch (name){
+      case "sin": r = Math.sin(degrees ? x * D : x); break;
+      case "cos": r = Math.cos(degrees ? x * D : x); break;
+      case "tan":
+        var a = degrees ? x * D : x;
+        if (Math.abs(Math.cos(a)) < 1e-12) throw new CalcError("Tanımsız");
+        r = Math.tan(a); break;
+      case "asin": r = Math.asin(x); if (degrees) r /= D; break;
+      case "acos": r = Math.acos(x); if (degrees) r /= D; break;
+      case "atan": r = Math.atan(x); if (degrees) r /= D; break;
+      case "sqrt": r = Math.sqrt(x); break;
+      case "abs": r = Math.abs(x); break;
+      case "log": r = Math.log10(x); break;
+      case "ln": r = Math.log(x); break;
+    }
+    if (isNaN(r) || r === -Infinity) throw new CalcError("Tanımsız");
+    return r;
+  }
+  var v = expression();
+  if (i !== t.length) throw new CalcError("Hata");
+  if (isNaN(v)) throw new CalcError("Tanımsız");
+  if (!isFinite(v)) throw new CalcError("Sonuç çok büyük");
+  return v;
+}
+
+function fmt(v){                       // kayan nokta kirini temizleyerek yaz
+  if (Math.abs(v) < 1e-12) return "0";
+  v = Number(v.toPrecision(12));
+  if (Number.isInteger(v) && Math.abs(v) < 1e15) return String(v);
+  if (Math.abs(v) >= 1e15 || Math.abs(v) < 1e-4){
+    var parts = v.toExponential(9).split("e");
+    return Number(parts[0]) + "×10^" + Number(parts[1]);
+  }
+  return String(Number(v.toPrecision(10)));
+}
+function fmtGrade(v){ return String(Number(v.toFixed(2))); }
+
+/* ═════════════ Sekmeler ═════════════ */
+var $ = function(id){ return document.getElementById(id); };
+function showTab(name){
+  document.querySelectorAll(".page").forEach(function(p){ p.classList.toggle("active", p.id === name); });
+  document.querySelectorAll("nav button").forEach(function(b){ b.classList.toggle("active", b.dataset.tab === name); });
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+}
+document.querySelectorAll("nav button").forEach(function(b){
+  b.addEventListener("click", function(){ showTab(b.dataset.tab); });
+});
+
+/* ═════════════ Hesap makinesi arayüzü ═════════════ */
+var LAYOUT = [
+  ["2nd","mode","sin","cos","tan"],
+  ["xʸ","log","ln","(",")"],
+  ["√","AC","⌫","%","÷"],
+  ["x!","7","8","9","×"],
+  ["1/x","4","5","6","−"],
+  ["π","1","2","3","+"],
+  ["|x|","e","0",".","="]
+];
+var SECOND = {"sin":"sin⁻¹","cos":"cos⁻¹","tan":"tan⁻¹","log":"10ˣ","ln":"eˣ","√":"x²"};
+var INSERT = {"sin":"sin(","cos":"cos(","tan":"tan(","log":"log(","ln":"ln(","√":"√(",
+  "sin⁻¹":"sin⁻¹(","cos⁻¹":"cos⁻¹(","tan⁻¹":"tan⁻¹(","10ˣ":"10^(","eˣ":"e^(",
+  "x²":"^2","xʸ":"^","x!":"!","1/x":"^(-1)","|x|":"abs(","π":"π","e":"e"};
+var CHUNKS = ["sin⁻¹(","cos⁻¹(","tan⁻¹(","sin(","cos(","tan(","log(","abs(","ln(","√("];
+var S = {expr:"", hist:"", done:false, deg:true, second:false};
+var keyEls = {};
+
+LAYOUT.forEach(function(row){
+  row.forEach(function(k){
+    var b = document.createElement("button");
+    b.className = "key" + (/^[0-9.]$/.test(k) ? " num" : k === "=" ? " eq" :
+                  "÷×−+".indexOf(k) >= 0 ? " op" : (k === "AC" || k === "⌫") ? " del" : "");
+    b.textContent = k === "mode" ? "DEG" : k;
+    b.addEventListener("click", function(){ press(k); });
+    $("keys").appendChild(b);
+    keyEls[k] = b;
+  });
+});
+
+function press(key){
+  if (key === "2nd"){
+    S.second = !S.second;
+    keyEls["2nd"].classList.toggle("on", S.second);
+    Object.keys(SECOND).forEach(function(k){ keyEls[k].textContent = S.second ? SECOND[k] : k; });
+    return;
+  }
+  if (key === "mode"){
+    S.deg = !S.deg;
+    keyEls.mode.textContent = $("modechip").textContent = S.deg ? "DEG" : "RAD";
+    return refresh();
+  }
+  if (key === "AC"){ S.expr = ""; S.hist = ""; S.done = false; }
+  else if (key === "⌫"){
+    if (S.done){ S.expr = ""; S.done = false; }
+    else {
+      var cut = 1;
+      for (var c = 0; c < CHUNKS.length; c++) if (S.expr.endsWith(CHUNKS[c])){ cut = CHUNKS[c].length; break; }
+      S.expr = S.expr.slice(0, -cut);
+    }
+  }
+  else if (key === "=") return equals();
+  else {
+    if (S.second && SECOND[key]) key = SECOND[key];
+    var text = INSERT[key] || key;
+    if (S.done && "+−×÷^!%".indexOf(text[0]) < 0) S.expr = "";   // yeni sayı → yeni işlem
+    S.done = false;
+    S.expr += text;
+  }
+  refresh();
+}
+
+function equals(){
+  if (!S.expr) return;
+  var res;
+  try { res = fmt(evaluate(S.expr, S.deg)); }
+  catch (e){
+    $("prev").textContent = (e instanceof CalcError) ? e.message : "Hata";
+    $("prev").classList.add("err");
+    return;
+  }
+  S.hist = S.expr + " =";
+  S.expr = res.replace(/-/g, "−");
+  S.done = true;
+  refresh();
+}
+
+function refresh(){
+  var shown = S.expr || "0", n = shown.length;
+  var el = $("expr");
+  el.style.fontSize = (n <= 11 ? 42 : n <= 15 ? 32 : n <= 21 ? 24 : 19) + "px";
+  el.textContent = n > 28 ? "…" + shown.slice(-27) : shown;
+  $("hist").textContent = S.hist.length > 32 ? "…" + S.hist.slice(-31) : S.hist;
+  var preview = " ";
+  if (S.expr && !S.done){
+    try {
+      var r = fmt(evaluate(S.expr, S.deg)).replace(/-/g, "−");
+      if (r !== S.expr) preview = "= " + r;
+    } catch (e){}
+  }
+  $("prev").textContent = preview;
+  $("prev").classList.remove("err");
+}
+
+/* ═════════════ Not ortalaması ═════════════ */
+var MAX_ROWS = 8, STORE = "morhesap.notlar.v1";
+var rows = [{name:"Vize", grade:"", weight:"40"}, {name:"Final", grade:"", weight:"60"}];
+try {
+  var saved = JSON.parse(localStorage.getItem(STORE));
+  if (saved && Array.isArray(saved.rows) && saved.rows.length){ rows = saved.rows; $("pass").value = saved.pass || "50"; }
+} catch (e){}
+function save(){
+  try { localStorage.setItem(STORE, JSON.stringify({rows: rows, pass: $("pass").value})); } catch (e){}
+}
+
+function renderRows(){
+  var box = $("rows");
+  box.innerHTML = "";
+  rows.forEach(function(r, idx){
+    var div = document.createElement("div");
+    div.className = "row";
+    [["name","", "text"], ["grade","c","decimal"], ["weight","c","decimal"]].forEach(function(spec){
+      var inp = document.createElement("input");
+      inp.value = r[spec[0]];
+      if (spec[1]) inp.className = spec[1];
+      inp.setAttribute("inputmode", spec[2]);
+      inp.maxLength = spec[0] === "name" ? 24 : 6;
+      inp.setAttribute("aria-label", spec[0]);
+      inp.addEventListener("input", function(){ r[spec[0]] = inp.value; recalc(); });
+      div.appendChild(inp);
+    });
+    var x = document.createElement("button");
+    x.className = "x"; x.textContent = "✕"; x.setAttribute("aria-label", "Sınavı sil");
+    x.addEventListener("click", function(){
+      if (rows.length <= 1) return;
+      rows.splice(idx, 1); renderRows(); recalc();
+    });
+    div.appendChild(x);
+    box.appendChild(div);
+  });
+  $("addrow").disabled = rows.length >= MAX_ROWS;
+}
+
+function num(text){
+  text = String(text).trim().replace(",", ".").replace("%", "");
+  if (!text) return null;
+  return /^-?\d*\.?\d+$|^-?\d+\.$/.test(text) ? parseFloat(text) : "bad";
+}
+
+function recalc(){
+  save();
+  var target = num($("pass").value);
+  if (target === null || target === "bad") target = 50;
+  var data = [], bad = null;
+  rows.forEach(function(r){
+    var g = num(r.grade), w = num(r.weight), name = r.name.trim() || "Sınav";
+    if (g === "bad" || w === "bad") bad = "“" + name + "” satırında geçersiz değer var.";
+    else if (g !== null && (g < 0 || g > 100)) bad = "“" + name + "” notu 0 ile 100 arasında olmalı.";
+    else if (w !== null && w < 0) bad = "“" + name + "” ağırlığı negatif olamaz.";
+    data.push({name: name, g: g, w: (typeof w === "number" && w > 0) ? w : 0});
+  });
+  var total = data.reduce(function(a, d){ return a + d.w; }, 0);
+  var ok100 = Math.abs(total - 100) < 1e-9;
+  $("barfill").style.width = Math.min(total, 100) + "%";
+  $("barfill").style.background = ok100 ? "var(--accent)" : "var(--warn)";
+  $("wsum").textContent = "Ağırlık toplamı: %" + fmtGrade(total) + (ok100 ? "" : "  —  %100 olmalı");
+  $("wsum").style.color = ok100 ? "var(--muted)" : "var(--warn)";
+
+  function out(avg, msg, color, avgColor){
+    $("avg").textContent = avg; $("avg").style.color = avgColor || "var(--text)";
+    $("status").textContent = msg; $("status").style.color = color;
+  }
+  if (bad) return out("—", bad, "var(--bad)");
+  if (total <= 0) return out("—", "Ağırlıkları gir.", "var(--muted)");
+  var filled = data.filter(function(d){ return typeof d.g === "number" && d.w > 0; });
+  var empty = data.filter(function(d){ return d.g === null && d.w > 0; });
+  if (!filled.length) return out("—", "Notlarını gir, ortalaman burada görünsün.", "var(--muted)");
+  var sum = filled.reduce(function(a, d){ return a + d.g * d.w; }, 0), earned = sum / 100;
+  if (!ok100){
+    var wf = filled.reduce(function(a, d){ return a + d.w; }, 0);
+    return out(fmtGrade(sum / wf), "Ağırlıklar %100 etmiyor; girilen ağırlıklara oranlanmış ortalama gösteriliyor.",
+               "var(--warn)");
+  }
+  if (!empty.length){
+    var passed = earned >= target - 1e-9;
+    return out(fmtGrade(earned), passed ? "Geçtin  ✓" :
+               "Kaldın — geçme notuna " + fmtGrade(target - earned) + " puan eksik.",
+               passed ? "var(--good)" : "var(--bad)", passed ? "var(--good)" : "var(--bad)");
+  }
+  if (empty.length === 1){
+    var e = empty[0], need = (target - earned) / (e.w / 100), msg, col;
+    if (need <= 0){ msg = e.name + " sınavından 0 alsan bile geçiyorsun."; col = "var(--good)"; }
+    else if (need > 100){ msg = e.name + " sınavından 100 alsan bile geçme notuna ulaşılamıyor."; col = "var(--bad)"; }
+    else { msg = "Geçmek için " + e.name + " sınavından en az " + fmtGrade(need) + " almalısın."; col = "var(--accent-soft)"; }
+    return out(fmtGrade(earned), "Şu ana kadar toplanan puan. " + msg, col);
+  }
+  out(fmtGrade(earned), "Şu ana kadar toplanan puan. Kalan " + empty.length + " sınavın notunu gir.", "var(--muted)");
+}
+
+$("addrow").addEventListener("click", function(){
+  if (rows.length >= MAX_ROWS) return;
+  rows.push({name: "Sınav " + (rows.length + 1), grade: "", weight: ""});
+  renderRows(); recalc();
+});
+$("clearrows").addEventListener("click", function(){
+  rows.forEach(function(r){ r.grade = ""; });
+  renderRows(); recalc();
+});
+$("pass").addEventListener("input", recalc);
+renderRows(); recalc(); refresh();
+</script>
+</body>
+</html>
